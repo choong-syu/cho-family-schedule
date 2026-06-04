@@ -3,6 +3,7 @@
     const HOMEWORK_DONE_KEY = "cho-family-homework-completed-v1";
     const FAMILY_KEY = "cho-family-settings-v1";
     const HOLIDAY_KEY = "cho-family-holidays-v1";
+    const TEMPLATE_KEY = "cho-family-templates-v1";
     const AUTH_KEY = "cho-family-admin-session-v1";
     const ADMIN_PASSWORD = "admin1234";
     const AppStorage = {
@@ -50,6 +51,12 @@
       { id: "s7", child: "민지", title: "여가시간", time: "20:00 - 20:35", start: 660, dur: 42, lane: 0, type: "leisure", drop: "가족", pick: "가족" }
     ];
 
+    const defaultTemplates = {
+      school: { type: "school", title: "학교", start: 90, dur: 210, child: "민지", drop: "엄마", pick: "이모", weekdays: ["월", "화", "수", "목", "금"], holidaySkip: true, lane: 0 },
+      academy: { type: "academy", title: "학원", start: 570, dur: 60, child: "준호", drop: "아빠", pick: "아빠", weekdays: ["화", "목"], holidaySkip: true, lane: 1 },
+      homework: { type: "homework", title: "숙제", start: 600, dur: 30, child: "민지", drop: "엄마", pick: "엄마", weekdays: ["월", "화", "수", "목", "금"], holidaySkip: false, lane: 0 }
+    };
+
     const todos = [
       ["민지", "피아노 숙제", "16:10 · 오늘 변경됨", "숙제"],
       ["준호", "태권도 이동", "15:10 · 아빠 등원", "학원"],
@@ -74,7 +81,8 @@
             children: defaultChildren.map(item => ({ ...item })),
             guardians: [...defaultGuardians]
           },
-          holidays: []
+          holidays: [],
+          templates: Object.fromEntries(Object.entries(defaultTemplates).map(([key, value]) => [key, { ...value, weekdays: [...value.weekdays] }]))
         };
       },
       loadSnapshot() {
@@ -91,7 +99,8 @@
           placedHomeworkIds: AppStorage.get(HOMEWORK_KEY, fallback.placedHomeworkIds, Array.isArray),
           completedHomeworkIds: AppStorage.get(HOMEWORK_DONE_KEY, fallback.completedHomeworkIds, Array.isArray),
           family: AppStorage.get(FAMILY_KEY, fallback.family, value => value?.children?.length && value?.guardians?.length),
-          holidays: AppStorage.get(HOLIDAY_KEY, fallback.holidays, Array.isArray)
+          holidays: AppStorage.get(HOLIDAY_KEY, fallback.holidays, Array.isArray),
+          templates: AppStorage.get(TEMPLATE_KEY, fallback.templates, value => value?.school && value?.academy && value?.homework)
         };
       },
       saveSnapshot(snapshot) {
@@ -111,6 +120,7 @@
         AppStorage.set(HOMEWORK_DONE_KEY, snapshot.completedHomeworkIds);
         AppStorage.set(FAMILY_KEY, snapshot.family);
         AppStorage.set(HOLIDAY_KEY, snapshot.holidays);
+        AppStorage.set(TEMPLATE_KEY, snapshot.templates);
       },
       resetSnapshot() {
         if (HttpClient.enabled) {
@@ -124,7 +134,7 @@
             document.documentElement.dataset.apiAdapter = this.adapter;
           }
         }
-        AppStorage.remove(STORAGE_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY);
+        AppStorage.remove(STORAGE_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY, TEMPLATE_KEY);
         return this.defaults();
       }
     };
@@ -148,11 +158,13 @@
     let completedHomeworkIds = initialSnapshot.completedHomeworkIds;
     let family = initialSnapshot.family;
     let holidays = initialSnapshot.holidays;
+    let templates = initialSnapshot.templates || ScheduleApi.defaults().templates;
     let currentFilter = "all";
     let selectedId = "s5";
     let selectedRange = "only";
     let currentView = "day";
     let activeAdmin = "today";
+    let activeTemplate = "school";
     let isAdminAuthed = loadAdminSession();
     let selectedHolidayDate = 4;
     let recentActions = [];
@@ -162,7 +174,8 @@
       get homework() { return { placedHomeworkIds, completedHomeworkIds }; },
       get family() { return family; },
       get holidays() { return holidays; },
-      get ui() { return { currentFilter, selectedId, selectedRange, currentView, activeAdmin, isAdminAuthed, selectedHolidayDate }; }
+      get templates() { return templates; },
+      get ui() { return { currentFilter, selectedId, selectedRange, currentView, activeAdmin, activeTemplate, isAdminAuthed, selectedHolidayDate }; }
     };
     window.choScheduleDemo = { state: appState, storage: AppStorage, api: ScheduleApi };
     document.documentElement.dataset.apiAdapter = ScheduleApi.adapter;
@@ -187,6 +200,13 @@
     const holidayDateGrid = document.querySelector("#holidayDateGrid");
     const holidayList = document.querySelector("#holidayList");
     const adminMonthGrid = document.querySelector("#adminMonthGrid");
+    const templateChild = document.querySelector("#templateChild");
+    const templateTitle = document.querySelector("#templateTitle");
+    const templateStart = document.querySelector("#templateStart");
+    const templateDuration = document.querySelector("#templateDuration");
+    const templateDrop = document.querySelector("#templateDrop");
+    const templatePick = document.querySelector("#templatePick");
+    const templatePreview = document.querySelector("#templatePreview");
     const authModal = document.querySelector("#authModal");
     const adminPasswordInput = document.querySelector("#adminPasswordInput");
     const authError = document.querySelector("#authError");
@@ -261,7 +281,7 @@
     }
 
     function persist(message = "저장됨") {
-      ScheduleApi.saveSnapshot({ schedules, placedHomeworkIds, completedHomeworkIds, family, holidays });
+      ScheduleApi.saveSnapshot({ schedules, placedHomeworkIds, completedHomeworkIds, family, holidays, templates });
       storageNote.textContent = `${message} · 새로고침 후에도 유지됩니다.`;
     }
 
@@ -363,6 +383,103 @@
           showToast(currentFilter === "all" ? "전체 아이 일정을 표시합니다." : `${currentFilter} 일정만 표시합니다.`);
         });
       });
+    }
+
+    function timeLabelFromStart(start) {
+      const total = 7 * 60 + Number(start);
+      return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+
+    function renderTemplateEditor() {
+      const template = templates[activeTemplate] || templates.school;
+      const names = { school: "학교 기본 템플릿", academy: "학원 반복 템플릿", homework: "숙제 템플릿" };
+      document.querySelectorAll("[data-template-card]").forEach(card => {
+        card.classList.toggle("active", card.dataset.templateCard === activeTemplate);
+      });
+      document.querySelector("#templateEditorTitle").textContent = `${names[activeTemplate]} 편집`;
+      document.querySelector("#templateEditorMeta").textContent = `${template.weekdays.join("/")} · ${template.holidaySkip ? "휴일 제외" : "휴일 포함"}`;
+      templateChild.innerHTML = family.children.map(child => `<option value="${child.name}">${child.name}</option>`).join("");
+      templateDrop.innerHTML = family.guardians.map(name => `<option value="${name}">${name}</option>`).join("");
+      templatePick.innerHTML = family.guardians.map(name => `<option value="${name}">${name}</option>`).join("");
+      templateChild.value = family.children.some(child => child.name === template.child) ? template.child : family.children[0].name;
+      templateTitle.value = template.title;
+      templateStart.value = String(template.start);
+      templateDuration.value = String(template.dur);
+      templateDrop.value = family.guardians.includes(template.drop) ? template.drop : family.guardians[0];
+      templatePick.value = family.guardians.includes(template.pick) ? template.pick : family.guardians[0];
+      document.querySelectorAll("[data-template-day]").forEach(btn => {
+        btn.classList.toggle("active", template.weekdays.includes(btn.dataset.templateDay));
+      });
+      document.querySelector("#templateHolidaySkip").classList.toggle("active", template.holidaySkip);
+      updateTemplatePreview();
+    }
+
+    function collectTemplateDraft() {
+      const base = templates[activeTemplate] || templates.school;
+      const weekdays = [...document.querySelectorAll("[data-template-day].active")].map(btn => btn.dataset.templateDay);
+      return {
+        ...base,
+        type: activeTemplate === "homework" ? "homework" : activeTemplate,
+        child: templateChild.value,
+        title: templateTitle.value.trim() || base.title,
+        start: Number(templateStart.value),
+        dur: Number(templateDuration.value),
+        drop: templateDrop.value,
+        pick: templatePick.value,
+        weekdays: weekdays.length ? weekdays : ["월"],
+        holidaySkip: document.querySelector("#templateHolidaySkip").classList.contains("active"),
+        lane: activeTemplate === "academy" ? 1 : 0
+      };
+    }
+
+    function updateTemplatePreview() {
+      const draft = collectTemplateDraft();
+      const endTotal = 7 * 60 + draft.start + draft.dur;
+      const end = `${String(Math.floor(endTotal / 60)).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
+      templatePreview.textContent = `${draft.child} · ${draft.title} / ${timeLabelFromStart(draft.start)} - ${end} / ${draft.weekdays.join("/")} · 등원 ${draft.drop} · 하원 ${draft.pick} · ${draft.holidaySkip ? "휴일 제외" : "휴일 포함"}`;
+    }
+
+    function saveTemplateBase() {
+      const draft = collectTemplateDraft();
+      templates[activeTemplate] = { ...draft, weekdays: [...draft.weekdays] };
+      persist("템플릿 원본이 저장되었습니다");
+      renderTemplateEditor();
+      addAction(`${draft.title}: ${draft.weekdays.join("/")} 템플릿 저장`);
+      showToast("템플릿을 저장했습니다.");
+    }
+
+    function createScheduleFromTemplate() {
+      const draft = collectTemplateDraft();
+      templates[activeTemplate] = { ...draft, weekdays: [...draft.weekdays] };
+      const schedule = {
+        id: `tpl-${activeTemplate}-${Date.now()}`,
+        child: draft.child,
+        title: draft.title,
+        time: formatTimeFromText(timeLabelFromStart(draft.start), draft.dur),
+        start: draft.start,
+        dur: draft.dur,
+        lane: draft.lane,
+        type: draft.type,
+        drop: draft.drop,
+        pick: draft.pick,
+        changed: true,
+        rangeLabel: "템플릿 생성",
+        recurrence: {
+          enabled: true,
+          type: "weekly",
+          weekdays: [...draft.weekdays],
+          holidaySkip: draft.holidaySkip,
+          until: "none"
+        }
+      };
+      schedules.push(schedule);
+      selectedId = schedule.id;
+      persist("템플릿에서 오늘 일정이 생성되었습니다");
+      addAction(`${schedule.child} ${schedule.title}: 템플릿에서 오늘 일정 생성`);
+      showToast("템플릿으로 오늘 일정을 만들었습니다.");
+      setAdminSection("today", false);
+      refreshAll();
+      selectSchedule(schedule.id, true);
     }
 
     function renderGuardianChips(groupName) {
@@ -767,6 +884,7 @@
       renderWeekSummary();
       renderMonthSummary();
       renderHolidaySettings();
+      renderTemplateEditor();
       updateSummaries();
       setMainView(currentView);
       setAdminSection(activeAdmin, false);
@@ -892,6 +1010,33 @@
       btn.addEventListener("click", () => createDraftSchedule(btn.dataset.addType));
     });
 
+    document.querySelectorAll("[data-template-select]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeTemplate = btn.dataset.templateSelect;
+        renderTemplateEditor();
+        showToast(`${btn.closest(".template-card").querySelector("strong").textContent}을 선택했습니다.`);
+      });
+    });
+
+    [templateChild, templateTitle, templateStart, templateDuration, templateDrop, templatePick].forEach(control => {
+      control.addEventListener("input", updateTemplatePreview);
+      control.addEventListener("change", updateTemplatePreview);
+    });
+
+    document.querySelectorAll("[data-template-day]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.classList.toggle("active");
+        updateTemplatePreview();
+      });
+    });
+
+    document.querySelector("#templateHolidaySkip").addEventListener("click", event => {
+      event.currentTarget.classList.toggle("active");
+      updateTemplatePreview();
+    });
+    document.querySelector("#saveTemplateBase").addEventListener("click", saveTemplateBase);
+    document.querySelector("#saveTemplateToday").addEventListener("click", createScheduleFromTemplate);
+
     document.querySelector("#addChild").addEventListener("click", addChild);
     document.querySelector("#childNameInput").addEventListener("keydown", event => {
       if (event.key === "Enter") addChild();
@@ -908,6 +1053,7 @@
       const defaults = ScheduleApi.defaults();
       family = defaults.family;
       holidays = defaults.holidays;
+      templates = defaults.templates;
       persist("가족/휴일 설정을 초기화했습니다");
       addAction("가족/휴일 설정 초기화");
       showToast("가족/휴일 설정을 초기화했습니다.");
@@ -1152,6 +1298,7 @@
       completedHomeworkIds = defaults.completedHomeworkIds;
       family = defaults.family;
       holidays = defaults.holidays;
+      templates = defaults.templates;
       currentFilter = "all";
       currentView = "day";
       activeAdmin = "today";

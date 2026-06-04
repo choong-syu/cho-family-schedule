@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>조씨네 일정</title>
-  <link rel="stylesheet" href="styles.css?v=admin-panels-1">
+  <link rel="stylesheet" href="styles.css?v=template-editor-2">
 </head>
 <body>
   <div class="app-shell">
@@ -236,21 +236,82 @@
               <span>반복 원본 관리</span>
             </div>
             <div class="template-grid">
-              <article class="template-card">
+              <article class="template-card active" data-template-card="school">
                 <strong>학교 기본 템플릿</strong>
                 <span>평일 오전 · 휴일 제외 · 보호자 순번 적용</span>
-                <button class="tiny-action" data-add-type="school">학교 일정 추가</button>
+                <button class="tiny-action" data-template-select="school">선택</button>
               </article>
-              <article class="template-card">
+              <article class="template-card" data-template-card="academy">
                 <strong>학원 반복 템플릿</strong>
                 <span>요일별 학원 이동 · 등하원 담당자 지정</span>
-                <button class="tiny-action" data-add-type="academy">학원 일정 추가</button>
+                <button class="tiny-action" data-template-select="academy">선택</button>
               </article>
-              <article class="template-card">
+              <article class="template-card" data-template-card="homework">
                 <strong>숙제/여가 규칙</strong>
                 <span>숙제 완료율에 따라 여가시간을 자동 계산</span>
-                <button class="tiny-action" data-add-type="leisure">여가 일정 추가</button>
+                <button class="tiny-action" data-template-select="homework">선택</button>
               </article>
+            </div>
+            <div class="template-editor">
+              <div class="panel-head compact">
+                <h2 id="templateEditorTitle">학교 기본 템플릿 편집</h2>
+                <span id="templateEditorMeta">평일 오전 · 휴일 제외</span>
+              </div>
+              <div class="template-form">
+                <label>
+                  <span>아이</span>
+                  <select id="templateChild"></select>
+                </label>
+                <label>
+                  <span>제목</span>
+                  <input id="templateTitle" value="학교">
+                </label>
+                <label>
+                  <span>시작 시간</span>
+                  <select id="templateStart">
+                    <option value="90">08:30</option>
+                    <option value="480">15:00</option>
+                    <option value="570">16:30</option>
+                    <option value="600">17:00</option>
+                    <option value="660">18:00</option>
+                  </select>
+                </label>
+                <label>
+                  <span>소요 시간</span>
+                  <select id="templateDuration">
+                    <option value="30">30분</option>
+                    <option value="45">45분</option>
+                    <option value="60">60분</option>
+                    <option value="210">3시간 30분</option>
+                  </select>
+                </label>
+                <label>
+                  <span>등원 담당자</span>
+                  <select id="templateDrop"></select>
+                </label>
+                <label>
+                  <span>하원 담당자</span>
+                  <select id="templatePick"></select>
+                </label>
+              </div>
+              <div class="template-weekdays" aria-label="템플릿 반복 요일">
+                <button class="chip active" data-template-day="월">월</button>
+                <button class="chip active" data-template-day="화">화</button>
+                <button class="chip active" data-template-day="수">수</button>
+                <button class="chip active" data-template-day="목">목</button>
+                <button class="chip active" data-template-day="금">금</button>
+                <button class="chip" data-template-day="토">토</button>
+                <button class="chip" data-template-day="일">일</button>
+              </div>
+              <div class="template-actions">
+                <button class="chip active" id="templateHolidaySkip">휴일 제외</button>
+                <button class="primary" id="saveTemplateToday">오늘 일정으로 생성</button>
+                <button class="ghost" id="saveTemplateBase">템플릿 저장</button>
+              </div>
+              <div class="preview-box">
+                <strong>템플릿 미리보기</strong>
+                <span id="templatePreview">학교 · 08:30 시작 · 평일 반복</span>
+              </div>
             </div>
           </section>
 
@@ -464,7 +525,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
 
-  <script src="app.js?v=admin-panels-1" defer></script>
+  <script src="app.js?v=template-editor-2" defer></script>
 </body>
 </html>
 
