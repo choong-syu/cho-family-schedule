@@ -910,6 +910,42 @@
     .homework-card strong { font-size: 14px; }
     .homework-card span { color: var(--muted); font-size: 12px; }
 
+    .homework-fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .homework-fields label {
+      display: grid;
+      gap: 4px;
+      color: #344054;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .homework-fields select {
+      width: 100%;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 12px;
+      padding: 0 6px;
+    }
+
+    .recommendation {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      border-radius: 8px;
+      background: var(--blue-soft);
+      color: #315ca8 !important;
+      padding: 5px 7px;
+      font-weight: 800;
+    }
+
     .homework-actions {
       display: flex;
       gap: 6px;
@@ -1458,6 +1494,9 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .management-grid {
+        grid-template-columns: 1fr;
+      }
+      .homework-fields {
         grid-template-columns: 1fr;
       }
       .template-form {

@@ -1,6 +1,7 @@
 ﻿const STORAGE_KEY = "cho-family-schedule-demo-v2";
     const HOMEWORK_KEY = "cho-family-homework-inbox-v1";
     const HOMEWORK_DONE_KEY = "cho-family-homework-completed-v1";
+    const HOMEWORK_ITEMS_KEY = "cho-family-homework-items-v1";
     const FAMILY_KEY = "cho-family-settings-v1";
     const HOLIDAY_KEY = "cho-family-holidays-v1";
     const TEMPLATE_KEY = "cho-family-templates-v1";
@@ -64,17 +65,33 @@
       ["민지", "영어 단어", "내일 등교 전", "대기"]
     ];
 
-    const homeworkInboxItems = [
-      { id: "hw1", child: "민지", title: "영어 단어", meta: "15분 · 마감 내일", time: "17:00 - 17:15", start: 480, dur: 22, lane: 0, drop: "엄마", pick: "엄마" },
-      { id: "hw2", child: "준호", title: "과학 관찰일지", meta: "30분 · 학교 숙제", time: "17:10 - 17:40", start: 485, dur: 42, lane: 1, drop: "엄마", pick: "엄마" },
-      { id: "hw3", child: "서윤", title: "독서 기록", meta: "10분 · 완료 가능", time: "19:10 - 19:20", start: 610, dur: 18, lane: 2, drop: "엄마", pick: "엄마" }
+    const defaultHomeworkInboxItems = [
+      { id: "hw1", child: "민지", title: "영어 단어", due: "내일", priority: "높음", duration: 15, time: "17:00 - 17:15", start: 600, dur: 15, lane: 0, drop: "엄마", pick: "엄마" },
+      { id: "hw2", child: "준호", title: "과학 관찰일지", due: "오늘", priority: "보통", duration: 30, time: "17:10 - 17:40", start: 610, dur: 30, lane: 1, drop: "엄마", pick: "엄마" },
+      { id: "hw3", child: "서윤", title: "독서 기록", due: "이번 주", priority: "낮음", duration: 10, time: "19:10 - 19:20", start: 730, dur: 10, lane: 2, drop: "엄마", pick: "엄마" }
     ];
+
+    function normalizeHomeworkItems(items) {
+      return items.map((item, index) => {
+        const fallback = defaultHomeworkInboxItems[index] || defaultHomeworkInboxItems[0];
+        const duration = Number(item.duration || item.dur || fallback.duration);
+        return {
+          ...fallback,
+          ...item,
+          due: item.due || fallback.due,
+          priority: item.priority || fallback.priority,
+          duration,
+          dur: duration
+        };
+      });
+    }
 
     const ScheduleApi = {
       adapter: HttpClient.enabled ? "http" : "localStorage",
       defaults() {
         return {
           schedules: defaultSchedules.map(item => ({ ...item })),
+          homeworkItems: defaultHomeworkInboxItems.map(item => ({ ...item })),
           placedHomeworkIds: [],
           completedHomeworkIds: [],
           family: {
@@ -96,6 +113,7 @@
         }
         return {
           schedules: AppStorage.get(STORAGE_KEY, fallback.schedules, value => Array.isArray(value) && value.length),
+          homeworkItems: AppStorage.get(HOMEWORK_ITEMS_KEY, fallback.homeworkItems, value => Array.isArray(value) && value.length),
           placedHomeworkIds: AppStorage.get(HOMEWORK_KEY, fallback.placedHomeworkIds, Array.isArray),
           completedHomeworkIds: AppStorage.get(HOMEWORK_DONE_KEY, fallback.completedHomeworkIds, Array.isArray),
           family: AppStorage.get(FAMILY_KEY, fallback.family, value => value?.children?.length && value?.guardians?.length),
@@ -116,6 +134,7 @@
           }
         }
         AppStorage.set(STORAGE_KEY, snapshot.schedules);
+        AppStorage.set(HOMEWORK_ITEMS_KEY, snapshot.homeworkItems);
         AppStorage.set(HOMEWORK_KEY, snapshot.placedHomeworkIds);
         AppStorage.set(HOMEWORK_DONE_KEY, snapshot.completedHomeworkIds);
         AppStorage.set(FAMILY_KEY, snapshot.family);
@@ -134,7 +153,7 @@
             document.documentElement.dataset.apiAdapter = this.adapter;
           }
         }
-        AppStorage.remove(STORAGE_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY, TEMPLATE_KEY);
+        AppStorage.remove(STORAGE_KEY, HOMEWORK_ITEMS_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY, TEMPLATE_KEY);
         return this.defaults();
       }
     };
@@ -154,6 +173,7 @@
 
     const initialSnapshot = ScheduleApi.loadSnapshot();
     let schedules = initialSnapshot.schedules;
+    let homeworkInboxItems = normalizeHomeworkItems(initialSnapshot.homeworkItems || ScheduleApi.defaults().homeworkItems);
     let placedHomeworkIds = initialSnapshot.placedHomeworkIds;
     let completedHomeworkIds = initialSnapshot.completedHomeworkIds;
     let family = initialSnapshot.family;
@@ -171,7 +191,7 @@
     let toastTimer;
     const appState = {
       get schedules() { return schedules; },
-      get homework() { return { placedHomeworkIds, completedHomeworkIds }; },
+      get homework() { return { homeworkInboxItems, placedHomeworkIds, completedHomeworkIds }; },
       get family() { return family; },
       get holidays() { return holidays; },
       get templates() { return templates; },
@@ -281,7 +301,7 @@
     }
 
     function persist(message = "저장됨") {
-      ScheduleApi.saveSnapshot({ schedules, placedHomeworkIds, completedHomeworkIds, family, holidays, templates });
+      ScheduleApi.saveSnapshot({ schedules, homeworkItems: homeworkInboxItems, placedHomeworkIds, completedHomeworkIds, family, holidays, templates });
       storageNote.textContent = `${message} · 새로고침 후에도 유지됩니다.`;
     }
 
@@ -615,22 +635,89 @@
       });
     }
 
+    function homeworkPriorityScore(item) {
+      const priority = { "높음": 3, "보통": 2, "낮음": 1 }[item.priority] || 1;
+      const due = { "오늘": 3, "내일": 2, "이번 주": 1 }[item.due] || 1;
+      return priority * 10 + due;
+    }
+
+    function recommendHomeworkSlot(homework) {
+      const duration = Number(homework.duration || homework.dur || 20);
+      const childBusy = schedules
+        .filter(item => item.child === homework.child && item.id !== selectedId)
+        .map(item => ({ start: item.start, end: item.start + durationFromRange(item.time, item.dur) }));
+      const candidates = [480, 510, 540, 570, 600, 630, 660, 690, 720, 750];
+      const start = candidates.find(candidate => {
+        const end = candidate + duration;
+        return childBusy.every(slot => end <= slot.start || candidate >= slot.end);
+      }) || Number(homework.start || 600);
+      const endTotal = 7 * 60 + start + duration;
+      const time = `${timeLabelFromStart(start)} - ${String(Math.floor(endTotal / 60)).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
+      return {
+        start,
+        time,
+        reason: `${homework.priority} · 마감 ${homework.due}`
+      };
+    }
+
+    function updateHomeworkItem(id, patch) {
+      const item = homeworkInboxItems.find(homework => homework.id === id);
+      if (!item) return;
+      Object.assign(item, patch);
+      const recommendation = recommendHomeworkSlot(item);
+      item.start = recommendation.start;
+      item.time = recommendation.time;
+      item.dur = Number(item.duration || item.dur);
+      persist("숙제 속성이 저장되었습니다");
+      renderHomeworkInbox();
+      updateSummaries();
+      showToast(`${item.title} 속성을 업데이트했습니다.`);
+    }
+
     function renderHomeworkInbox() {
       homeworkInbox.innerHTML = homeworkInboxItems.map(item => {
         const placed = placedHomeworkIds.includes(item.id);
         const completed = completedHomeworkIds.includes(item.id);
+        const recommendation = recommendHomeworkSlot(item);
         return `
           <div class="homework-card ${placed ? 'placed' : ''} ${completed ? 'completed' : ''}" data-homework-card="${item.id}">
             <strong>${item.child} ${item.title}</strong>
-            <span>${completed ? '완료됨 · 여가 계산 반영' : placed ? '배치됨 · 완료 체크 필요' : item.meta}</span>
+            <span>${item.duration}분 · 마감 ${item.due} · 우선순위 ${item.priority}${completed ? ' · 완료됨' : placed ? ' · 배치됨' : ''}</span>
+            <div class="homework-fields">
+              <label>소요
+                <select data-homework-duration="${item.id}">
+                  ${[10, 15, 20, 30, 45].map(value => `<option value="${value}" ${item.duration === value ? "selected" : ""}>${value}분</option>`).join("")}
+                </select>
+              </label>
+              <label>마감
+                <select data-homework-due="${item.id}">
+                  ${["오늘", "내일", "이번 주"].map(value => `<option value="${value}" ${item.due === value ? "selected" : ""}>${value}</option>`).join("")}
+                </select>
+              </label>
+              <label>우선순위
+                <select data-homework-priority="${item.id}">
+                  ${["높음", "보통", "낮음"].map(value => `<option value="${value}" ${item.priority === value ? "selected" : ""}>${value}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <span class="recommendation">추천 ${recommendation.time} · ${recommendation.reason}</span>
             <div class="homework-actions">
-              <button class="tiny-action" data-homework-id="${item.id}" ${placed ? 'disabled' : ''}>배치</button>
+              <button class="tiny-action" data-homework-id="${item.id}" ${placed ? 'disabled' : ''}>추천 배치</button>
               <button class="tiny-action ${completed ? 'active' : ''}" data-complete-homework="${item.id}" ${placed ? '' : 'disabled'}>${completed ? '완료 취소' : '완료 체크'}</button>
             </div>
           </div>
         `;
       }).join("");
 
+      homeworkInbox.querySelectorAll("[data-homework-duration]").forEach(select => {
+        select.addEventListener("change", () => updateHomeworkItem(select.dataset.homeworkDuration, { duration: Number(select.value), dur: Number(select.value) }));
+      });
+      homeworkInbox.querySelectorAll("[data-homework-due]").forEach(select => {
+        select.addEventListener("change", () => updateHomeworkItem(select.dataset.homeworkDue, { due: select.value }));
+      });
+      homeworkInbox.querySelectorAll("[data-homework-priority]").forEach(select => {
+        select.addEventListener("change", () => updateHomeworkItem(select.dataset.homeworkPriority, { priority: select.value }));
+      });
       homeworkInbox.querySelectorAll("[data-homework-id]").forEach(btn => {
         btn.addEventListener("click", () => placeHomeworkFromInbox(btn.dataset.homeworkId));
       });
@@ -1139,7 +1226,9 @@
     });
 
     function autoPlaceHomework() {
-      const next = homeworkInboxItems.find(item => !placedHomeworkIds.includes(item.id));
+      const next = homeworkInboxItems
+        .filter(item => !placedHomeworkIds.includes(item.id))
+        .sort((a, b) => homeworkPriorityScore(b) - homeworkPriorityScore(a))[0];
       if (!next) {
         document.querySelector("#quickNotice").textContent = "대기 중인 숙제가 모두 배치되었습니다.";
         showToast("배치할 숙제가 없습니다.");
@@ -1186,27 +1275,29 @@
         showToast("이미 배치된 숙제입니다.");
         return;
       }
+      const recommendation = recommendHomeworkSlot(homework);
+      const lane = Math.max(0, family.children.findIndex(child => child.name === homework.child));
       const schedule = {
         id: `hw-${id}-${Date.now()}`,
         homeworkId: id,
         child: homework.child,
         title: homework.title,
-        time: homework.time,
-        start: homework.start,
-        dur: homework.dur,
-        lane: homework.lane,
+        time: recommendation.time,
+        start: recommendation.start,
+        dur: homework.duration,
+        lane,
         type: "homework",
         drop: homework.drop,
         pick: homework.pick,
         changed: true,
-        rangeLabel: "대기함 배치"
+        rangeLabel: `${homework.priority} 숙제`
       };
       schedules.push(schedule);
       placedHomeworkIds.push(id);
       selectedId = schedule.id;
-      document.querySelector("#quickNotice").textContent = `${homework.child} ${homework.title}을 ${homework.time}에 배치했습니다.`;
+      document.querySelector("#quickNotice").textContent = `${homework.child} ${homework.title}을 ${recommendation.time}에 배치했습니다.`;
       persist("숙제 대기함 배치가 저장되었습니다");
-      addAction(`${homework.child} ${homework.title}: ${homework.time}에 대기함에서 배치`);
+      addAction(`${homework.child} ${homework.title}: ${recommendation.time} 추천 배치`);
       showToast("숙제가 시간표에 배치됐습니다.");
       refreshAll();
       selectSchedule(schedule.id, true);
@@ -1294,6 +1385,7 @@
     document.querySelector("#resetDemo").addEventListener("click", () => {
       const defaults = ScheduleApi.resetSnapshot();
       schedules = defaults.schedules;
+      homeworkInboxItems = normalizeHomeworkItems(defaults.homeworkItems);
       placedHomeworkIds = defaults.placedHomeworkIds;
       completedHomeworkIds = defaults.completedHomeworkIds;
       family = defaults.family;
