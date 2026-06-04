@@ -1,0 +1,470 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>조씨네 일정</title>
+  <link rel="stylesheet" href="styles.css?v=admin-panels-1">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">조</div>
+        <div>
+          <strong>조씨네 일정</strong>
+          <span>가족 일정 통합 보드</span>
+        </div>
+      </div>
+
+      <div class="mode-tabs" aria-label="화면 선택">
+        <button class="active" data-mode="main"><span class="icon">⌂</span>Main</button>
+        <button data-mode="admin"><span class="icon">✎</span>Admin</button>
+      </div>
+
+      <div class="nav-group">
+        <h2>ADMIN MENU</h2>
+        <div class="nav-list">
+          <button class="active" data-admin="today"><span class="icon">◷</span>오늘 관리</button>
+          <button data-admin="templates"><span class="icon">↻</span>일정 템플릿</button>
+          <button data-admin="homework"><span class="icon">✓</span>숙제 관리</button>
+          <button data-admin="settings"><span class="icon">⚙</span>휴일/설정</button>
+        </div>
+      </div>
+
+      <div class="mini-summary">
+        <div class="mini-row"><span>오늘 일정</span><strong>9개</strong></div>
+        <div class="mini-row"><span>미완료 숙제</span><strong id="miniHomework">4개</strong></div>
+        <div class="mini-row"><span>여가 활성</span><strong id="miniLeisure">35분</strong></div>
+      </div>
+    </aside>
+
+    <main>
+      <section id="mainView">
+        <div class="topbar">
+          <div class="date-stack">
+            <h1>6월 4일 목요일</h1>
+            <p>가족 전체 일정과 아이별 해야 할 일을 한 화면에서 봅니다.</p>
+          </div>
+          <div class="toolbar">
+            <div class="segmented" aria-label="보기 전환">
+              <button class="active" data-view="day">일간</button>
+              <button data-view="week">주간</button>
+              <button data-view="month">월간</button>
+            </div>
+            <button class="ghost">오늘</button>
+          </div>
+        </div>
+
+        <div class="now-card">
+          <div>
+            <div class="now-label">지금 해야 할 일</div>
+            <h2 id="nowTitle">민지 피아노 숙제 20분</h2>
+            <div class="now-meta">
+              <span id="nowTime">16:10 - 16:30</span>
+              <span id="nowGuardian">등원 엄마 · 하원 아빠</span>
+              <span>오늘 변경됨</span>
+            </div>
+          </div>
+          <span class="status-pill" id="nowStatus">여가까지 2개 남음</span>
+        </div>
+
+        <div class="child-strip" aria-label="아이별 상태">
+          <article class="child-card">
+            <div class="avatar minji"><span>민</span></div>
+            <div>
+              <h3>민지</h3>
+              <p id="minjiStatus">숙제 60% 완료 · 피아노 전 쉬는 중</p>
+              <div class="progress" id="minjiProgress" style="--value: 60%"><span></span></div>
+            </div>
+          </article>
+          <article class="child-card">
+            <div class="avatar jun"><span>준</span></div>
+            <div>
+              <h3>준호</h3>
+              <p id="junStatus">숙제 33% 완료 · 태권도 이동 예정</p>
+              <div class="progress" id="junProgress" style="--value: 33%"><span></span></div>
+            </div>
+          </article>
+          <article class="child-card">
+            <div class="avatar seo"><span>서</span></div>
+            <div>
+              <h3>서윤</h3>
+              <p id="seoStatus">숙제 완료 · 여가 35분 활성</p>
+              <div class="progress" id="seoProgress" style="--value: 100%"><span></span></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="leisure-strip">
+          <section class="leisure-panel">
+            <h2>여가시간 활성</h2>
+            <p id="leisureFormula">숙제 배치/완료 상태를 기준으로 활성 시간이 계산됩니다.</p>
+            <div class="leisure-meter" id="leisureMeter" style="--value: 58%"><span></span></div>
+          </section>
+          <section class="leisure-panel">
+            <h2>숙제-여가 규칙</h2>
+            <p id="homeworkRule">대기함 숙제가 줄어들수록 여가시간이 더 많이 열립니다.</p>
+          </section>
+        </div>
+
+        <div class="topbar">
+          <div class="chip-row" aria-label="아이 필터">
+            <button class="chip active" data-filter="all">전체</button>
+            <button class="chip" data-filter="민지">민지</button>
+            <button class="chip" data-filter="준호">준호</button>
+            <button class="chip" data-filter="서윤">서윤</button>
+          </div>
+        </div>
+
+        <div class="main-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 id="boardTitle">오늘 시간표</h2>
+              <span>07:00 - 24:00</span>
+            </div>
+            <div class="week-summary hidden" id="weekSummary"></div>
+            <div class="month-summary hidden" id="monthSummary"></div>
+            <div class="schedule-board">
+              <div class="time-axis">
+                <span>07:00</span><span>09:00</span><span>11:00</span><span>13:00</span><span>15:00</span>
+                <span>17:00</span><span>19:00</span><span>21:00</span><span>23:00</span><span>24:00</span>
+              </div>
+              <div class="timeline" id="mainTimeline"></div>
+            </div>
+          </section>
+
+          <aside class="side-stack">
+            <section class="panel urgent">
+              <div class="panel-head">
+                <h2>긴급 숙제</h2>
+                <span>마감 임박</span>
+              </div>
+              <div class="todo-list">
+                <div class="todo">
+                  <span class="dot" style="background: var(--coral)"></span>
+                  <div><strong>준호 수학 오답노트</strong><span>오늘 20:00까지 · 25분</span></div>
+                  <span class="tag">미완료</span>
+                </div>
+                <div class="todo">
+                  <span class="dot" style="background: var(--yellow)"></span>
+                  <div><strong>민지 영어 단어 15개</strong><span>내일 등교 전 · 15분</span></div>
+                  <span class="tag">대기</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>오늘/내일 할 일</h2>
+                <span>아이 기준</span>
+              </div>
+              <div class="todo-list" id="todoList"></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="adminView" class="hidden">
+        <div class="topbar">
+          <div class="date-stack">
+            <h1>오늘 관리</h1>
+            <p>반복 원본은 유지하고 오늘 필요한 변경만 빠르게 저장합니다.</p>
+          </div>
+          <div class="toolbar">
+            <span class="admin-session" id="adminSession">Admin 로그인됨</span>
+            <button class="ghost" id="logoutAdmin">로그아웃</button>
+            <button class="ghost" id="resetDemo">초기화</button>
+            <button class="ghost sheet-toggle" id="openSheet">수정 패널</button>
+            <button class="primary" id="autoPlace">숙제 자동 배치</button>
+          </div>
+        </div>
+
+        <div class="admin-grid">
+          <aside class="panel admin-left">
+            <div class="calendar-box">
+              <strong>2026년 6월</strong>
+              <div class="month-grid" id="adminMonthGrid" aria-label="날짜 선택"></div>
+            </div>
+            <div class="tool-card">
+              <h3>아이</h3>
+              <div class="chip-row">
+                <button class="chip active" data-admin-child-filter="all">전체</button>
+                <button class="chip" data-admin-child-filter="민지">민지</button>
+                <button class="chip" data-admin-child-filter="준호">준호</button>
+                <button class="chip" data-admin-child-filter="서윤">서윤</button>
+              </div>
+            </div>
+            <div class="tool-card">
+              <h3>추가</h3>
+              <div class="chip-row">
+                <button class="chip" data-add-type="school">학교</button>
+                <button class="chip" data-add-type="academy">학원</button>
+                <button class="chip" data-add-type="homework">숙제</button>
+                <button class="chip" data-add-type="leisure">여가</button>
+              </div>
+            </div>
+          </aside>
+
+          <section class="panel canvas" data-admin-panel="today">
+            <div class="canvas-top">
+              <h2 id="adminTitle">오늘 적용 일정</h2>
+              <div class="chip-row">
+                <button class="chip active">오늘</button>
+                <button class="chip">기본 반복</button>
+                <button class="chip">미리보기</button>
+              </div>
+            </div>
+            <div class="canvas-body">
+              <div class="schedule-board">
+                <div class="time-axis">
+                  <span>07:00</span><span>09:00</span><span>11:00</span><span>13:00</span><span>15:00</span>
+                  <span>17:00</span><span>19:00</span><span>21:00</span><span>23:00</span><span>24:00</span>
+                </div>
+                <div class="timeline admin-timeline" id="adminTimeline" aria-label="시간표 빈 곳을 클릭해 선택 일정 시간 변경"></div>
+              </div>
+              <div class="drop-zone">
+                <h3>오늘 확인</h3>
+                <p class="panel-note">시간표 빈 곳을 클릭하면 선택한 일정 시간이 바로 이동합니다.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel admin-detail hidden" data-admin-panel="templates">
+            <div class="panel-head">
+              <h2>일정 템플릿</h2>
+              <span>반복 원본 관리</span>
+            </div>
+            <div class="template-grid">
+              <article class="template-card">
+                <strong>학교 기본 템플릿</strong>
+                <span>평일 오전 · 휴일 제외 · 보호자 순번 적용</span>
+                <button class="tiny-action" data-add-type="school">학교 일정 추가</button>
+              </article>
+              <article class="template-card">
+                <strong>학원 반복 템플릿</strong>
+                <span>요일별 학원 이동 · 등하원 담당자 지정</span>
+                <button class="tiny-action" data-add-type="academy">학원 일정 추가</button>
+              </article>
+              <article class="template-card">
+                <strong>숙제/여가 규칙</strong>
+                <span>숙제 완료율에 따라 여가시간을 자동 계산</span>
+                <button class="tiny-action" data-add-type="leisure">여가 일정 추가</button>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel admin-detail hidden" data-admin-panel="homework">
+            <div class="panel-head">
+              <h2>숙제 관리</h2>
+              <span>대기함 배치와 완료 체크</span>
+            </div>
+            <div class="homework-admin-layout">
+              <div class="drop-zone">
+                <h3>숙제 대기함</h3>
+                <div id="homeworkInbox"></div>
+              </div>
+              <div class="summary-card">
+                <h3>숙제-여가 규칙</h3>
+                <p id="adminHomeworkRule">완료 체크 기준으로 여가시간이 열립니다.</p>
+                <button class="primary" id="autoPlacePanel">숙제 자동 배치</button>
+              </div>
+            </div>
+          </section>
+
+          <aside class="panel quick-panel" data-admin-panel="today">
+            <button class="ghost sheet-close" id="closeSheet">패널 접기</button>
+            <div>
+              <h2 id="quickTitle">민지 피아노 숙제</h2>
+              <p style="margin: 6px 0 0; color: var(--muted); font-size: 13px;">선택한 일정 빠른 수정</p>
+            </div>
+            <div class="field">
+              <label for="titleInput">제목</label>
+              <input id="titleInput" value="민지 피아노 숙제">
+            </div>
+            <div class="field">
+              <label>등원 담당자</label>
+              <div class="chip-row" data-chip-group="drop">
+                <button class="chip active">엄마</button>
+                <button class="chip">아빠</button>
+                <button class="chip">이모</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>하원 담당자</label>
+              <div class="chip-row" data-chip-group="pick">
+                <button class="chip">엄마</button>
+                <button class="chip active">아빠</button>
+                <button class="chip">이모</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>시간</label>
+              <div class="chip-row" data-chip-group="time">
+                <button class="chip" data-start="405">15:50</button>
+                <button class="chip active" data-start="415">16:10</button>
+                <button class="chip" data-start="435">16:30</button>
+                <button class="chip" data-start="465">17:00</button>
+              </div>
+            </div>
+            <div class="repeat-panel">
+              <div class="switch-row">
+                <h3>반복 설정</h3>
+                <button class="switch" id="repeatToggle" type="button" aria-label="반복 켜기" aria-pressed="false"></button>
+              </div>
+              <div class="field hidden" id="repeatControls">
+                <label>반복 주기</label>
+                <div class="chip-row" data-chip-group="repeatType">
+                  <button class="chip active" data-repeat="weekly">매주</button>
+                  <button class="chip" data-repeat="daily">매일</button>
+                  <button class="chip" data-repeat="monthly">매월</button>
+                </div>
+                <label>요일</label>
+                <div class="chip-row" data-weekdays>
+                  <button class="chip" data-day="월">월</button>
+                  <button class="chip" data-day="화">화</button>
+                  <button class="chip active" data-day="수">수</button>
+                  <button class="chip active" data-day="목">목</button>
+                  <button class="chip" data-day="금">금</button>
+                  <button class="chip" data-day="토">토</button>
+                  <button class="chip" data-day="일">일</button>
+                </div>
+                <label>옵션</label>
+                <div class="chip-row">
+                  <button class="chip active" id="holidaySkip">휴일 제외</button>
+                  <button class="chip" id="repeatUntil">종료 없음</button>
+                </div>
+              </div>
+            </div>
+            <div class="notice" id="quickNotice">오늘 변경 항목은 Main 시간표에 즉시 표시됩니다.</div>
+            <div class="preview-box">
+              <strong>변경 미리보기</strong>
+              <span id="changePreview">저장 전입니다. 담당자나 시간을 선택하면 여기에서 변경 예정 내용을 확인합니다.</span>
+            </div>
+            <div class="storage-note" id="storageNote">브라우저 저장 준비됨</div>
+            <div class="save-row">
+              <button class="primary" id="saveToday">오늘만 저장</button>
+              <button class="ghost" id="cancelToday">오늘 취소</button>
+              <button class="ghost" id="saveSeries">반복 범위 선택</button>
+            </div>
+          </aside>
+        </div>
+        <section class="panel" style="margin-top: 16px;">
+          <div class="panel-head">
+            <h2>최근 작업</h2>
+            <span>Main 반영 상태</span>
+          </div>
+          <div class="action-log" id="actionLog">
+            <div>아직 이번 세션에서 저장한 변경이 없습니다.</div>
+          </div>
+        </section>
+
+        <section class="management-grid hidden" id="settingsPanel">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>아이 관리</h2>
+              <span>색상/캐릭터</span>
+            </div>
+            <div class="manage-body">
+              <div class="inline-form">
+                <input id="childNameInput" placeholder="아이 이름">
+                <button class="primary" id="addChild">아이 추가</button>
+              </div>
+              <div class="manage-list" id="childManageList"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>보호자 관리</h2>
+              <span>담당자 칩 자동 반영</span>
+            </div>
+            <div class="manage-body">
+              <div class="inline-form">
+                <input id="guardianNameInput" placeholder="보호자 이름">
+                <button class="primary" id="addGuardian">보호자 추가</button>
+              </div>
+              <div class="manage-list" id="guardianManageList"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>휴일/방학 등록</h2>
+              <span>학교/학원 자동 비활성</span>
+            </div>
+            <div class="manage-body">
+              <div class="date-chip-grid" id="holidayDateGrid"></div>
+              <div class="inline-form">
+                <input id="holidayTitleInput" placeholder="예: 여름방학, 재량휴업일">
+                <button class="primary" id="addHoliday">휴일 등록</button>
+              </div>
+              <div class="manage-list" id="holidayList"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>설정 반영</h2>
+              <span>데모 저장</span>
+            </div>
+            <div class="manage-body">
+              <div class="notice">아이와 보호자를 추가하면 필터, 담당자 칩, 일정 카드에 즉시 반영됩니다. 휴일로 등록한 날짜는 월간 화면과 학교/학원 카드에 표시됩니다.</div>
+              <button class="ghost" id="resetSettings">가족/휴일 설정 초기화</button>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <div class="modal-backdrop hidden" id="rangeModal" role="dialog" aria-modal="true" aria-labelledby="rangeTitle">
+        <div class="modal">
+          <div>
+            <h2 id="rangeTitle">반복 일정 수정 범위</h2>
+            <p>부모가 실제로 생각하는 방식대로 저장 범위를 고릅니다. 선택 결과는 일정 카드에 바로 표시됩니다.</p>
+          </div>
+          <div class="range-options" id="rangeOptions">
+            <button class="range-option active" data-range="only">
+              <strong>이 일정만 수정</strong>
+              <span>오늘 하루에만 변경을 남기고 반복 원본은 그대로 둡니다.</span>
+            </button>
+            <button class="range-option" data-range="future">
+              <strong>이 일정부터 이후 모두 수정</strong>
+              <span>오늘부터 새 반복 일정으로 나뉘었다는 표시를 남깁니다.</span>
+            </button>
+            <button class="range-option" data-range="all">
+              <strong>전체 반복일정 수정</strong>
+              <span>반복 원본 자체를 바꾼 것으로 표시합니다.</span>
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button class="ghost" id="closeRange">닫기</button>
+            <button class="primary" id="confirmRange">선택한 범위로 저장</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <div class="auth-modal hidden" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-card">
+        <div>
+          <span class="auth-kicker">ADMIN ACCESS</span>
+          <h2 id="authTitle">관리자 비밀번호</h2>
+          <p>Main 화면은 그대로 볼 수 있고, 일정 수정은 Admin 비밀번호 확인 후 사용할 수 있습니다.</p>
+        </div>
+        <label class="auth-field">
+          <span>비밀번호</span>
+          <input id="adminPasswordInput" type="password" autocomplete="current-password" placeholder="admin 비밀번호">
+        </label>
+        <div class="auth-error" id="authError" role="alert"></div>
+        <div class="auth-actions">
+          <button class="ghost" id="cancelAuth">취소</button>
+          <button class="primary" id="confirmAuth">Admin 들어가기</button>
+        </div>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="app.js?v=admin-panels-1" defer></script>
+</body>
+</html>
+
