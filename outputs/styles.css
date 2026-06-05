@@ -509,6 +509,19 @@
       box-shadow: 0 0 0 4px rgba(255,255,255,.95), 0 16px 34px rgba(35,47,60,.2);
     }
 
+    .schedule-card.holiday-disabled {
+      opacity: .56;
+      filter: grayscale(.28);
+      border-left-color: #aebccc;
+      background: #eef3f7;
+      cursor: not-allowed;
+    }
+
+    .schedule-card.holiday-disabled:hover {
+      transform: none;
+      box-shadow: 0 9px 20px rgba(35,47,60,.12);
+    }
+
     .schedule-card button {
       position: absolute;
       inset: 0;

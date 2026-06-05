@@ -384,11 +384,27 @@
       adminMonthGrid.querySelectorAll("[data-admin-day]").forEach(btn => {
         btn.addEventListener("click", () => {
           selectedHolidayDate = Number(btn.dataset.adminDay);
-          renderAdminCalendar();
-          renderHolidaySettings();
+          refreshAll();
           showToast(`6월 ${selectedHolidayDate}일 일정으로 전환했습니다.`);
         });
       });
+    }
+
+    function holidayForDay(day) {
+      return holidays.find(holiday => holiday.day === day);
+    }
+
+    function disablesOnHoliday(item) {
+      return ["school", "academy"].includes(item.type) && item.recurrence?.holidaySkip !== false;
+    }
+
+    function holidayImpact(day = selectedHolidayDate) {
+      const holiday = holidayForDay(day);
+      if (!holiday) return { holiday: null, affected: [] };
+      return {
+        holiday,
+        affected: schedules.filter(item => disablesOnHoliday(item))
+      };
     }
 
     function bindAdminChildFilters() {
@@ -470,6 +486,12 @@
 
     function createScheduleFromTemplate() {
       const draft = collectTemplateDraft();
+      const holiday = holidayForDay(selectedHolidayDate);
+      if (holiday && draft.holidaySkip && ["school", "academy"].includes(draft.type)) {
+        showToast(`${holiday.title}에는 ${draft.title} 템플릿이 휴일 제외로 생성되지 않습니다.`);
+        document.querySelector("#templateEditorMeta").textContent = `${holiday.title} 적용 중 · 휴일 제외`;
+        return;
+      }
       templates[activeTemplate] = { ...draft, weekdays: [...draft.weekdays] };
       const schedule = {
         id: `tpl-${activeTemplate}-${Date.now()}`,
@@ -620,7 +642,8 @@
       document.querySelector("#nowStatus").textContent = completedCount >= 2 ? "여가 거의 활성" : `완료까지 ${homeworkInboxItems.length - completedCount}개 남음`;
       document.querySelector("#leisureFormula").textContent = `숙제 ${homeworkInboxItems.length}개 중 ${completedCount}개 완료 · 완료율 ${completion}% · 여가 ${leisureMinutes} 활성`;
       document.querySelector("#homeworkRule").textContent = `배치된 숙제는 ${placedHomeworkIds.length}개, 실제 완료는 ${completedCount}개입니다. 완료 체크 기준으로 여가시간이 열립니다.`;
-      document.querySelector("#adminHomeworkRule").textContent = `배치 ${placedHomeworkIds.length}개 · 완료 ${completedCount}개 · 여가 ${leisureMinutes} 활성`;
+      const holiday = holidayForDay(selectedHolidayDate);
+      document.querySelector("#adminHomeworkRule").textContent = `배치 ${placedHomeworkIds.length}개 · 완료 ${completedCount}개 · 여가 ${leisureMinutes} 활성${holiday ? ` · ${holiday.title}로 학교/학원 충돌 제외` : ""}`;
       document.querySelector("#leisureMeter").style.setProperty("--value", `${completion}%`);
       updateChildStatuses(completion, leisureMinutes);
     }
@@ -643,10 +666,14 @@
 
     function recommendHomeworkSlot(homework) {
       const duration = Number(homework.duration || homework.dur || 20);
+      const holiday = holidayForDay(selectedHolidayDate);
       const childBusy = schedules
         .filter(item => item.child === homework.child && item.id !== selectedId)
+        .filter(item => !(holiday && disablesOnHoliday(item)))
         .map(item => ({ start: item.start, end: item.start + durationFromRange(item.time, item.dur) }));
-      const candidates = [480, 510, 540, 570, 600, 630, 660, 690, 720, 750];
+      const candidates = holiday
+        ? [420, 450, 480, 510, 540, 570, 600, 630, 660, 690, 720, 750]
+        : [480, 510, 540, 570, 600, 630, 660, 690, 720, 750];
       const start = candidates.find(candidate => {
         const end = candidate + duration;
         return childBusy.every(slot => end <= slot.start || candidate >= slot.end);
@@ -656,7 +683,7 @@
       return {
         start,
         time,
-        reason: `${homework.priority} · 마감 ${homework.due}`
+        reason: `${homework.priority} · 마감 ${homework.due}${holiday ? " · 휴일 여유 슬롯" : ""}`
       };
     }
 
@@ -751,7 +778,7 @@
     function renderMonthSummary() {
       const changedCount = schedules.filter(item => item.changed || item.rangeLabel).length;
       const remaining = homeworkInboxItems.length - completedHomeworkIds.length;
-      const days = Array.from({ length: 14 }, (_, index) => index + 1);
+      const days = Array.from({ length: 30 }, (_, index) => index + 1);
       monthSummary.innerHTML = days.map(day => {
         const badges = [];
         const holiday = holidays.find(item => item.day === day);
@@ -770,25 +797,28 @@
     }
 
     function renderHolidaySettings() {
-      holidayDateGrid.innerHTML = Array.from({ length: 14 }, (_, index) => {
+      holidayDateGrid.innerHTML = Array.from({ length: 30 }, (_, index) => {
         const day = index + 1;
         const holiday = holidays.find(item => item.day === day);
         return `<button class="${day === selectedHolidayDate ? "active" : ""}" data-holiday-day="${day}">${day}${holiday ? "*" : ""}</button>`;
       }).join("");
       holidayList.innerHTML = holidays.length
-        ? holidays.map((holiday, index) => `
+        ? holidays.map((holiday, index) => {
+          const impact = holidayImpact(holiday.day);
+          return `
           <div class="manage-item">
             <span class="color-dot" style="--dot-color:#e5edff"></span>
-            <div><strong>6월 ${holiday.day}일</strong><span>${holiday.title} · 학교/학원 비활성 표시</span></div>
+            <div><strong>6월 ${holiday.day}일</strong><span>${holiday.title} · 학교/학원 ${impact.affected.length}개 자동 비활성</span></div>
             <button class="tiny-action" data-remove-holiday="${index}">삭제</button>
           </div>
-        `).join("")
+        `;
+        }).join("")
         : `<div class="notice">등록된 휴일/방학이 없습니다.</div>`;
 
       holidayDateGrid.querySelectorAll("[data-holiday-day]").forEach(btn => {
         btn.addEventListener("click", () => {
           selectedHolidayDate = Number(btn.dataset.holidayDay);
-          renderHolidaySettings();
+          refreshAll();
           showToast(`6월 ${selectedHolidayDate}일을 선택했습니다.`);
         });
       });
@@ -799,27 +829,30 @@
 
     function renderTimeline(target, admin = false) {
       const visible = schedules.filter(item => currentFilter === "all" || item.child === currentFilter);
+      const activeDay = admin ? selectedHolidayDate : 4;
+      const activeHoliday = holidayForDay(activeDay);
       target.innerHTML = visible.map(item => {
         const top = Math.round(item.start * 0.72);
         const height = Math.max(54, Math.round(item.dur * 0.72));
         const lane = admin ? "8px" : `calc(${item.lane * 33.333}% + 8px)`;
         const widthStyle = admin ? "width: calc(100% - 16px)" : "";
-        const disabledByHoliday = holidays.some(holiday => holiday.day === 4) && ["school", "academy"].includes(item.type);
+        const disabledByHoliday = Boolean(activeHoliday && disablesOnHoliday(item));
         return `
-          <article class="schedule-card ${item.type} ${item.id === selectedId ? 'selected' : ''}" data-child="${item.child}" data-lane="${item.lane}" style="--top:${top}px; --height:${height}px; --lane:${lane}; ${widthStyle}">
+          <article class="schedule-card ${item.type} ${item.id === selectedId ? 'selected' : ''} ${disabledByHoliday ? 'holiday-disabled' : ''}" data-child="${item.child}" data-lane="${item.lane}" style="--top:${top}px; --height:${height}px; --lane:${lane}; ${widthStyle}">
             <div class="schedule-title">${item.child} · ${item.title}</div>
             <div class="schedule-time">${item.time}</div>
             <div class="schedule-guardians">등원 ${item.drop} · 하원 ${item.pick}</div>
-            ${disabledByHoliday ? '<span class="changed">휴일 비활성</span>' : ''}
+            ${disabledByHoliday ? `<span class="changed">${activeHoliday.title} · 휴일 비활성</span>` : ''}
             ${item.changed ? '<span class="changed">오늘 변경됨</span>' : ''}
             ${item.recurrence?.enabled ? `<span class="changed">${repeatSummary(item)}</span>` : ''}
             ${item.rangeLabel ? `<span class="changed">${item.rangeLabel}</span>` : ''}
-            <button aria-label="${item.child} ${item.title} 선택" data-select="${item.id}">선택</button>
+            <button aria-label="${item.child} ${item.title} 선택" data-select="${item.id}" ${disabledByHoliday ? 'disabled' : ''}>${disabledByHoliday ? '비활성' : '선택'}</button>
           </article>
         `;
       }).join("");
 
       target.querySelectorAll("[data-select]").forEach(btn => {
+        if (btn.disabled) return;
         btn.addEventListener("click", () => selectSchedule(btn.dataset.select));
       });
     }
