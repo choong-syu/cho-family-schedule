@@ -1,7 +1,7 @@
 # 조씨네 일정 DB 스키마 초안
 
-이 문서는 현재 파일 기반 `snapshot.json` 데이터를 실제 DB로 옮기기 위한 기준입니다.
-프론트는 당분간 `/api/snapshot`을 계속 사용할 수 있고, 서버 내부 저장소만 아래 구조로 바꾸면 됩니다.
+이 문서는 현재 파일 기반 `snapshot.json` 데이터와 SQLite 저장소를 실제 DB로 확장하기 위한 기준입니다.
+프론트는 당분간 `/api/snapshot`을 계속 사용할 수 있고, 서버 내부 저장소는 `STORAGE_DRIVER=file|sqlite`로 전환할 수 있습니다.
 
 ## 핵심 엔티티
 
@@ -107,7 +107,7 @@
 
 ## 다음 구현 순서
 
-1. 같은 API 응답을 유지한 채 SQLite 저장소 추가
-2. `snapshot.json`을 SQLite로 가져오는 migration 스크립트 추가
-3. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
-4. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
+1. `snapshot.json`을 SQLite로 가져오는 migration 스크립트 추가
+2. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
+3. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
+4. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환

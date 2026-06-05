@@ -4,6 +4,8 @@
   "private": true,
   "description": "조씨네 가족 일정 관리 프로토타입",
   "scripts": {
-    "start": "node outputs/server.js"
+    "start": "node outputs/server.js",
+    "start:file": "node outputs/server.js",
+    "start:sqlite": "set STORAGE_DRIVER=sqlite&& node outputs/server.js"
   }
 }

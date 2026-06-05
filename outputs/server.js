@@ -7,9 +7,10 @@ const {
   normalizeSnapshot,
   readEntity,
   readSnapshot,
+  storageDriver,
   updateEntity,
   writeSnapshot
-} = require("./schedule-repository");
+} = require("./repository");
 
 const PORT = Number(process.env.PORT || 8123);
 const ROOT = __dirname;
@@ -80,6 +81,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       if (body.password !== ADMIN_PASSWORD) return sendJson(res, 401, { ok: false, message: "invalid password" });
       return sendJson(res, 200, { ok: true, role: "admin", sessionId: `local-${Date.now()}` });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/health") {
+      return sendJson(res, 200, { ok: true, storageDriver });
     }
 
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
