@@ -107,7 +107,7 @@
 
 ## 다음 구현 순서
 
-1. SQLite `users` 테이블에 admin 해시 저장
-2. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
-3. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환
-4. SQLite 테이블을 Postgres 호환 스키마로 확장
+1. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
+2. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환
+3. SQLite 테이블을 Postgres 호환 스키마로 확장
+4. 세션 토큰 만료/로그아웃 서버 검증 추가

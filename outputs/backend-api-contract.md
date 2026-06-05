@@ -53,7 +53,8 @@ Response:
 ```
 
 기본 비밀번호는 `admin1234`이고, 서버 내부에서는 PBKDF2 해시로 검증합니다.
-실서비스에서는 `ADMIN_PASSWORD_HASH` 환경변수를 지정합니다.
+파일 저장소는 `ADMIN_PASSWORD_HASH` 환경변수를 직접 사용하고, SQLite 저장소는 `users` 테이블의 `admin` 계정 해시를 우선 사용합니다.
+새 SQLite DB를 처음 만들 때 `ADMIN_PASSWORD_HASH`가 있으면 그 값으로 admin 계정을 seed합니다.
 
 비밀번호 해시 생성:
 

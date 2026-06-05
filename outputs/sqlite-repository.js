@@ -2,6 +2,10 @@ const path = require("path");
 const fs = require("fs");
 const { DatabaseSync } = require("node:sqlite");
 const {
+  DEFAULT_ADMIN_PASSWORD_HASH,
+  getAdminPasswordHash: getConfiguredAdminPasswordHash
+} = require("./auth");
+const {
   defaultSnapshot,
   entityPayload,
   normalizeSnapshot,
@@ -46,7 +50,15 @@ function database() {
       type TEXT PRIMARY KEY,
       payload TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      role TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
+  ensureAdminUser();
   return db;
 }
 
@@ -61,6 +73,21 @@ function tableIsEmpty(tableName) {
 function ensureSeeded() {
   if (!tableIsEmpty("schedules")) return;
   writeSnapshot(defaultSnapshot());
+}
+
+function ensureAdminUser() {
+  const conn = db;
+  const admin = conn.prepare("SELECT id FROM users WHERE id = ?").get("admin");
+  if (admin) return;
+  const now = new Date().toISOString();
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH;
+  conn.prepare("INSERT INTO users (id, role, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+    .run("admin", "admin", passwordHash, now, now);
+}
+
+function getAdminPasswordHash() {
+  const row = database().prepare("SELECT password_hash FROM users WHERE id = ? AND role = ?").get("admin", "admin");
+  return row?.password_hash || getConfiguredAdminPasswordHash();
 }
 
 function readSnapshot() {
@@ -158,6 +185,7 @@ module.exports = {
   defaultSnapshot,
   entityPayload,
   normalizeSnapshot,
+  getAdminPasswordHash,
   readEntity,
   readSnapshot,
   storageDriver: "sqlite",
