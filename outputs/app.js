@@ -2,6 +2,7 @@
     const HOMEWORK_KEY = "cho-family-homework-inbox-v1";
     const HOMEWORK_DONE_KEY = "cho-family-homework-completed-v1";
     const HOMEWORK_ITEMS_KEY = "cho-family-homework-items-v1";
+    const DELETED_SCHEDULES_KEY = "cho-family-deleted-schedules-v1";
     const FAMILY_KEY = "cho-family-settings-v1";
     const HOLIDAY_KEY = "cho-family-holidays-v1";
     const TEMPLATE_KEY = "cho-family-templates-v1";
@@ -91,6 +92,7 @@
       defaults() {
         return {
           schedules: defaultSchedules.map(item => ({ ...item })),
+          deletedSchedules: [],
           homeworkItems: defaultHomeworkInboxItems.map(item => ({ ...item })),
           placedHomeworkIds: [],
           completedHomeworkIds: [],
@@ -113,6 +115,7 @@
         }
         return {
           schedules: AppStorage.get(STORAGE_KEY, fallback.schedules, value => Array.isArray(value) && value.length),
+          deletedSchedules: AppStorage.get(DELETED_SCHEDULES_KEY, fallback.deletedSchedules, Array.isArray),
           homeworkItems: AppStorage.get(HOMEWORK_ITEMS_KEY, fallback.homeworkItems, value => Array.isArray(value) && value.length),
           placedHomeworkIds: AppStorage.get(HOMEWORK_KEY, fallback.placedHomeworkIds, Array.isArray),
           completedHomeworkIds: AppStorage.get(HOMEWORK_DONE_KEY, fallback.completedHomeworkIds, Array.isArray),
@@ -134,6 +137,7 @@
           }
         }
         AppStorage.set(STORAGE_KEY, snapshot.schedules);
+        AppStorage.set(DELETED_SCHEDULES_KEY, snapshot.deletedSchedules);
         AppStorage.set(HOMEWORK_ITEMS_KEY, snapshot.homeworkItems);
         AppStorage.set(HOMEWORK_KEY, snapshot.placedHomeworkIds);
         AppStorage.set(HOMEWORK_DONE_KEY, snapshot.completedHomeworkIds);
@@ -153,7 +157,7 @@
             document.documentElement.dataset.apiAdapter = this.adapter;
           }
         }
-        AppStorage.remove(STORAGE_KEY, HOMEWORK_ITEMS_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY, TEMPLATE_KEY);
+        AppStorage.remove(STORAGE_KEY, DELETED_SCHEDULES_KEY, HOMEWORK_ITEMS_KEY, HOMEWORK_KEY, HOMEWORK_DONE_KEY, FAMILY_KEY, HOLIDAY_KEY, TEMPLATE_KEY);
         return this.defaults();
       }
     };
@@ -173,6 +177,7 @@
 
     const initialSnapshot = ScheduleApi.loadSnapshot();
     let schedules = initialSnapshot.schedules;
+    let deletedSchedules = initialSnapshot.deletedSchedules || [];
     let homeworkInboxItems = normalizeHomeworkItems(initialSnapshot.homeworkItems || ScheduleApi.defaults().homeworkItems);
     let placedHomeworkIds = initialSnapshot.placedHomeworkIds;
     let completedHomeworkIds = initialSnapshot.completedHomeworkIds;
@@ -191,6 +196,7 @@
     let toastTimer;
     const appState = {
       get schedules() { return schedules; },
+      get deletedSchedules() { return deletedSchedules; },
       get homework() { return { homeworkInboxItems, placedHomeworkIds, completedHomeworkIds }; },
       get family() { return family; },
       get holidays() { return holidays; },
@@ -207,6 +213,8 @@
     const rangeModal = document.querySelector("#rangeModal");
     const quickPanel = document.querySelector(".quick-panel");
     const actionLog = document.querySelector("#actionLog");
+    const trashList = document.querySelector("#trashList");
+    const trashCount = document.querySelector("#trashCount");
     const changePreview = document.querySelector("#changePreview");
     const toast = document.querySelector("#toast");
     const homeworkInbox = document.querySelector("#homeworkInbox");
@@ -301,7 +309,7 @@
     }
 
     function persist(message = "저장됨") {
-      ScheduleApi.saveSnapshot({ schedules, homeworkItems: homeworkInboxItems, placedHomeworkIds, completedHomeworkIds, family, holidays, templates });
+      ScheduleApi.saveSnapshot({ schedules, deletedSchedules, homeworkItems: homeworkInboxItems, placedHomeworkIds, completedHomeworkIds, family, holidays, templates });
       storageNote.textContent = `${message} · 새로고침 후에도 유지됩니다.`;
     }
 
@@ -316,6 +324,64 @@
       recentActions.unshift(message);
       recentActions = recentActions.slice(0, 4);
       actionLog.innerHTML = recentActions.map(item => `<div>${item}</div>`).join("");
+    }
+
+    function renderTrash() {
+      trashCount.textContent = `${deletedSchedules.length}개`;
+      trashList.innerHTML = deletedSchedules.length
+        ? deletedSchedules.map(item => `
+          <div class="trash-item">
+            <div>
+              <strong>${item.child} · ${item.title}</strong>
+              <span>${item.time} · ${item.deletedAtLabel || "방금 삭제"}</span>
+            </div>
+            <button class="tiny-action" data-restore-schedule="${item.id}">복구</button>
+          </div>
+        `).join("")
+        : `<div class="notice">삭제한 일정이 없습니다.</div>`;
+      trashList.querySelectorAll("[data-restore-schedule]").forEach(btn => {
+        btn.addEventListener("click", () => restoreSchedule(btn.dataset.restoreSchedule));
+      });
+    }
+
+    function deleteSelectedSchedule() {
+      const index = schedules.findIndex(item => item.id === selectedId);
+      if (index < 0) return showToast("삭제할 일정을 선택하세요.");
+      const [removed] = schedules.splice(index, 1);
+      deletedSchedules.unshift({
+        ...removed,
+        deletedAt: new Date().toISOString(),
+        deletedAtLabel: "휴지통 이동됨"
+      });
+      if (removed.homeworkId) {
+        placedHomeworkIds = placedHomeworkIds.filter(id => id !== removed.homeworkId);
+        completedHomeworkIds = completedHomeworkIds.filter(id => id !== removed.homeworkId);
+      }
+      selectedId = schedules[0]?.id || "";
+      persist("일정을 휴지통으로 이동했습니다");
+      addAction(`${removed.child} ${removed.title}: 휴지통 이동`);
+      showToast("일정을 휴지통으로 이동했습니다.");
+      refreshAll();
+      if (selectedId) selectSchedule(selectedId, false);
+    }
+
+    function restoreSchedule(id) {
+      const index = deletedSchedules.findIndex(item => item.id === id);
+      if (index < 0) return;
+      const [restored] = deletedSchedules.splice(index, 1);
+      delete restored.deletedAt;
+      delete restored.deletedAtLabel;
+      schedules.push(restored);
+      schedules.sort((a, b) => a.start - b.start);
+      if (restored.homeworkId && !placedHomeworkIds.includes(restored.homeworkId)) {
+        placedHomeworkIds.push(restored.homeworkId);
+      }
+      selectedId = restored.id;
+      persist("휴지통에서 일정을 복구했습니다");
+      addAction(`${restored.child} ${restored.title}: 복구`);
+      showToast("일정을 복구했습니다.");
+      refreshAll();
+      selectSchedule(restored.id, true);
     }
 
     function avatarClass(name) {
@@ -1005,6 +1071,7 @@
       renderMonthSummary();
       renderHolidaySettings();
       renderTemplateEditor();
+      renderTrash();
       updateSummaries();
       setMainView(currentView);
       setAdminSection(activeAdmin, false);
@@ -1258,6 +1325,8 @@
       if (window.innerWidth <= 760) quickPanel.classList.remove("open");
     });
 
+    document.querySelector("#deleteSchedule").addEventListener("click", deleteSelectedSchedule);
+
     function autoPlaceHomework() {
       const next = homeworkInboxItems
         .filter(item => !placedHomeworkIds.includes(item.id))
@@ -1418,6 +1487,7 @@
     document.querySelector("#resetDemo").addEventListener("click", () => {
       const defaults = ScheduleApi.resetSnapshot();
       schedules = defaults.schedules;
+      deletedSchedules = defaults.deletedSchedules;
       homeworkInboxItems = normalizeHomeworkItems(defaults.homeworkItems);
       placedHomeworkIds = defaults.placedHomeworkIds;
       completedHomeworkIds = defaults.completedHomeworkIds;

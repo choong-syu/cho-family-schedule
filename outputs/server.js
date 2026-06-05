@@ -31,6 +31,7 @@ function defaultSnapshot() {
       { id: "s6", child: "서윤", title: "저녁 식사", time: "18:20 - 19:00", start: 555, dur: 44, lane: 2, type: "meal", drop: "엄마", pick: "엄마" },
       { id: "s7", child: "민지", title: "여가시간", time: "20:00 - 20:35", start: 660, dur: 42, lane: 0, type: "leisure", drop: "가족", pick: "가족" }
     ],
+    deletedSchedules: [],
     homeworkItems: [
       { id: "hw1", child: "민지", title: "영어 단어", due: "내일", priority: "높음", duration: 15, time: "17:00 - 17:15", start: 600, dur: 15, lane: 0, drop: "엄마", pick: "엄마" },
       { id: "hw2", child: "준호", title: "과학 관찰일지", due: "오늘", priority: "보통", duration: 30, time: "17:10 - 17:40", start: 610, dur: 30, lane: 1, drop: "엄마", pick: "엄마" },

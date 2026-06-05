@@ -192,7 +192,7 @@
       padding: 4px;
     }
 
-    .segmented button, .chip, .primary, .ghost {
+    .segmented button, .chip, .primary, .ghost, .danger {
       border: 0;
       border-radius: 8px;
       min-height: 36px;
@@ -226,6 +226,19 @@
     .ghost {
       border: 1px solid var(--line);
       background: #fff;
+    }
+
+    .danger {
+      border: 1px solid #fecaca;
+      background: #fff5f5;
+      color: #b91c1c;
+      font-weight: 800;
+    }
+
+    .danger:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      transform: translateY(-1px);
     }
 
     .main-grid {
@@ -1210,6 +1223,59 @@
       line-height: 1.35;
     }
 
+    .trash-box {
+      border-top: 1px solid var(--line);
+      padding: 14px 16px 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel-head.compact {
+      padding: 0;
+      min-height: auto;
+    }
+
+    .panel-head.compact h2 {
+      font-size: 15px;
+    }
+
+    .trash-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .trash-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #fecaca;
+      background: #fffafa;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .trash-item strong {
+      display: block;
+      font-size: 13px;
+      color: #17202a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .trash-item span {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      color: #7f1d1d;
+      line-height: 1.35;
+    }
+
+    .trash-item button {
+      min-height: 34px;
+    }
+
     .toast {
       position: fixed;
       right: 18px;
@@ -1511,6 +1577,12 @@
       }
       .homework-fields {
         grid-template-columns: 1fr;
+      }
+      .trash-item {
+        grid-template-columns: 1fr;
+      }
+      .trash-item button {
+        width: 100%;
       }
       .template-form {
         grid-template-columns: 1fr;
