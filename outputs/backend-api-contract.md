@@ -52,7 +52,20 @@ Response:
 { "ok": true, "role": "admin", "sessionId": "local-..." }
 ```
 
-실서비스에서는 `ADMIN_PASSWORD` 환경변수와 비밀번호 해시 저장으로 교체합니다.
+기본 비밀번호는 `admin1234`이고, 서버 내부에서는 PBKDF2 해시로 검증합니다.
+실서비스에서는 `ADMIN_PASSWORD_HASH` 환경변수를 지정합니다.
+
+비밀번호 해시 생성:
+
+```powershell
+npm run hash:password -- "새비밀번호"
+```
+
+서버 실행 예:
+
+```powershell
+set ADMIN_PASSWORD_HASH=pbkdf2$sha256$...&& npm start
+```
 
 ## Snapshot API
 

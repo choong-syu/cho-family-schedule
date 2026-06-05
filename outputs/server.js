@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { getAdminPasswordHash, verifyPassword } = require("./auth");
 const {
   defaultSnapshot,
   entityPayload,
@@ -14,7 +15,7 @@ const {
 
 const PORT = Number(process.env.PORT || 8123);
 const ROOT = __dirname;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin1234";
+const ADMIN_PASSWORD_HASH = getAdminPasswordHash();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -79,7 +80,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/admin/login") {
       const body = await readBody(req);
-      if (body.password !== ADMIN_PASSWORD) return sendJson(res, 401, { ok: false, message: "invalid password" });
+      if (!verifyPassword(body.password, ADMIN_PASSWORD_HASH)) return sendJson(res, 401, { ok: false, message: "invalid password" });
       return sendJson(res, 200, { ok: true, role: "admin", sessionId: `local-${Date.now()}` });
     }
 

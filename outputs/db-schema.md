@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | id | text primary key | `admin` 같은 내부 계정 ID |
 | role | text | `admin`, `guardian` |
-| password_hash | text | 지금은 `admin1234` 단순 로그인, 실제 서비스에서는 해시 저장 |
+| password_hash | text | PBKDF2 해시 문자열 |
 | created_at | datetime | 생성일 |
 
 ### children
@@ -107,7 +107,7 @@
 
 ## 다음 구현 순서
 
-1. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
+1. SQLite `users` 테이블에 admin 해시 저장
 2. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
 3. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환
 4. SQLite 테이블을 Postgres 호환 스키마로 확장
