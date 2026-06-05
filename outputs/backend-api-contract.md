@@ -1,6 +1,6 @@
 # 조씨네 일정 Backend API 계약
 
-현재 서버는 `outputs/server.js`에서 파일 기반 `outputs/data/snapshot.json` 저장소를 사용합니다.
+현재 서버는 `outputs/schedule-repository.js`에서 파일 기반 `outputs/data/snapshot.json` 저장소를 사용합니다.
 프론트는 기존 `/api/snapshot`을 사용하고, 실제 DB 전환 준비를 위해 `/api/entities` 계열 API를 추가했습니다.
 
 ## Admin Login

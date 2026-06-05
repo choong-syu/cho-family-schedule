@@ -107,7 +107,7 @@
 
 ## 다음 구현 순서
 
-1. `outputs/server.js`의 파일 저장 함수를 `repository` 모듈로 분리
-2. 같은 API 응답을 유지한 채 SQLite 저장소 추가
-3. `snapshot.json`을 SQLite로 가져오는 migration 스크립트 추가
-4. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
+1. 같은 API 응답을 유지한 채 SQLite 저장소 추가
+2. `snapshot.json`을 SQLite로 가져오는 migration 스크립트 추가
+3. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
+4. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
