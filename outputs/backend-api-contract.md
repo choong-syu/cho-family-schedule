@@ -1,59 +1,143 @@
-# 조씨네 일정 Backend API 준비안
+# 조씨네 일정 Backend API 계약
 
-현재 프론트엔드는 `ScheduleApi` 어댑터를 통해 데이터를 읽고 저장합니다. 지금 구현은 `localStorage` 어댑터이며, 실제 백엔드로 전환할 때는 `outputs/app.js`의 `ScheduleApi` 구현만 서버 호출로 교체하면 됩니다.
+현재 서버는 `outputs/server.js`에서 파일 기반 `outputs/data/snapshot.json` 저장소를 사용합니다.
+프론트는 기존 `/api/snapshot`을 사용하고, 실제 DB 전환 준비를 위해 `/api/entities` 계열 API를 추가했습니다.
 
 ## Admin Login
 
-- `POST /api/admin/login`
-- Request
+### `POST /api/admin/login`
+
+Request:
+
 ```json
 { "password": "admin1234" }
 ```
-- Response
+
+Response:
+
 ```json
-{ "ok": true, "role": "admin", "sessionId": "..." }
+{ "ok": true, "role": "admin", "sessionId": "local-..." }
 ```
 
-## Schedule Snapshot
+실서비스에서는 `ADMIN_PASSWORD` 환경변수와 비밀번호 해시 저장으로 교체합니다.
 
-- `GET /api/snapshot`
-- Response
+## Snapshot API
+
+프론트 호환용 API입니다. 화면은 이 API만으로 계속 동작합니다.
+
+### `GET /api/snapshot`
+
+Response:
+
 ```json
 {
   "schedules": [],
+  "deletedSchedules": [],
+  "homeworkItems": [],
   "placedHomeworkIds": [],
   "completedHomeworkIds": [],
   "family": {
     "children": [],
     "guardians": []
   },
-  "holidays": []
+  "holidays": [],
+  "templates": {}
 }
 ```
 
-- `PUT /api/snapshot`
-- Request: `GET /api/snapshot`과 같은 형태
-- Response
+### `PUT /api/snapshot`
+
+Request: `GET /api/snapshot`과 같은 전체 snapshot.
+
+Response:
+
 ```json
-{ "ok": true, "savedAt": "2026-06-05T00:00:00+09:00" }
+{ "ok": true, "savedAt": "2026-06-05T00:00:00.000Z" }
 ```
 
-## Reset Demo Data
+### `POST /api/snapshot/reset`
 
-- `POST /api/snapshot/reset`
-- Response: 초기화된 snapshot
+데모 데이터를 초기화합니다.
 
-## Frontend Adapter Target
+## Entity API
 
-`outputs/app.js`의 현재 구조:
+DB 전환 준비용 API입니다. 현재는 같은 `snapshot.json`을 읽고 쓰지만, 나중에는 각 컬렉션을 DB 테이블에 연결하면 됩니다.
 
-```js
-const ScheduleApi = {
-  adapter: "localStorage",
-  loadSnapshot() {},
-  saveSnapshot(snapshot) {},
-  resetSnapshot() {}
-};
+### `GET /api/entities`
+
+Response:
+
+```json
+{
+  "children": [],
+  "guardians": [],
+  "schedules": [],
+  "deletedSchedules": [],
+  "homework": {
+    "items": [],
+    "placedIds": [],
+    "completedIds": []
+  },
+  "holidays": [],
+  "templates": {}
+}
 ```
 
-서버 연결 시 `adapter`를 `"http"`로 바꾸고 각 메서드 내부를 `fetch("/api/...")`로 교체하면 됩니다.
+### `GET /api/entities/:collection`
+
+지원 컬렉션:
+
+- `children`
+- `guardians`
+- `schedules`
+- `deleted-schedules`
+- `homework`
+- `holidays`
+- `templates`
+
+### `PUT /api/entities/:collection`
+
+컬렉션 단위로 저장합니다.
+
+Examples:
+
+```http
+PUT /api/entities/children
+```
+
+```json
+[
+  { "name": "민지", "color": "#ffe07b", "initial": "민" }
+]
+```
+
+```http
+PUT /api/entities/homework
+```
+
+```json
+{
+  "items": [],
+  "placedIds": [],
+  "completedIds": []
+}
+```
+
+Response:
+
+```json
+{ "ok": true, "savedAt": "2026-06-05T00:00:00.000Z" }
+```
+
+## DB Mapping
+
+상세 스키마는 `outputs/db-schema.md`를 기준으로 합니다.
+
+현재 API와 DB 전환 기준:
+
+- `family.children` -> `children`
+- `family.guardians` -> `guardians`
+- `schedules` + `deletedSchedules` -> `schedules.deleted_at`
+- `homeworkItems` + 배치/완료 ID -> `homework_items`
+- `holidays` -> `holidays`
+- `templates` -> `schedule_templates`

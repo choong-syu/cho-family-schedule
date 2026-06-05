@@ -89,6 +89,94 @@ function writeSnapshot(snapshot) {
   fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2), "utf8");
 }
 
+function normalizeSnapshot(snapshot) {
+  const defaults = defaultSnapshot();
+  return {
+    schedules: Array.isArray(snapshot.schedules) ? snapshot.schedules : defaults.schedules,
+    deletedSchedules: Array.isArray(snapshot.deletedSchedules) ? snapshot.deletedSchedules : defaults.deletedSchedules,
+    homeworkItems: Array.isArray(snapshot.homeworkItems) ? snapshot.homeworkItems : defaults.homeworkItems,
+    placedHomeworkIds: Array.isArray(snapshot.placedHomeworkIds) ? snapshot.placedHomeworkIds : defaults.placedHomeworkIds,
+    completedHomeworkIds: Array.isArray(snapshot.completedHomeworkIds) ? snapshot.completedHomeworkIds : defaults.completedHomeworkIds,
+    family: {
+      children: Array.isArray(snapshot.family?.children) ? snapshot.family.children : defaults.family.children,
+      guardians: Array.isArray(snapshot.family?.guardians) ? snapshot.family.guardians : defaults.family.guardians
+    },
+    holidays: Array.isArray(snapshot.holidays) ? snapshot.holidays : defaults.holidays,
+    templates: snapshot.templates && typeof snapshot.templates === "object" ? snapshot.templates : defaults.templates
+  };
+}
+
+function entityPayload(snapshot) {
+  const data = normalizeSnapshot(snapshot);
+  return {
+    children: data.family.children,
+    guardians: data.family.guardians,
+    schedules: data.schedules,
+    deletedSchedules: data.deletedSchedules,
+    homework: {
+      items: data.homeworkItems,
+      placedIds: data.placedHomeworkIds,
+      completedIds: data.completedHomeworkIds
+    },
+    holidays: data.holidays,
+    templates: data.templates
+  };
+}
+
+function readEntity(snapshot, collection) {
+  const entities = entityPayload(snapshot);
+  const readers = {
+    children: () => entities.children,
+    guardians: () => entities.guardians,
+    schedules: () => entities.schedules,
+    "deleted-schedules": () => entities.deletedSchedules,
+    homework: () => entities.homework,
+    holidays: () => entities.holidays,
+    templates: () => entities.templates
+  };
+  return readers[collection]?.();
+}
+
+function updateEntity(snapshot, collection, value) {
+  const next = normalizeSnapshot(snapshot);
+  const writers = {
+    children: () => {
+      if (!Array.isArray(value)) throw new Error("children must be an array");
+      next.family.children = value;
+    },
+    guardians: () => {
+      if (!Array.isArray(value)) throw new Error("guardians must be an array");
+      next.family.guardians = value;
+    },
+    schedules: () => {
+      if (!Array.isArray(value)) throw new Error("schedules must be an array");
+      next.schedules = value;
+    },
+    "deleted-schedules": () => {
+      if (!Array.isArray(value)) throw new Error("deleted-schedules must be an array");
+      next.deletedSchedules = value;
+    },
+    homework: () => {
+      if (!value || typeof value !== "object") throw new Error("homework must be an object");
+      next.homeworkItems = Array.isArray(value.items) ? value.items : next.homeworkItems;
+      next.placedHomeworkIds = Array.isArray(value.placedIds) ? value.placedIds : next.placedHomeworkIds;
+      next.completedHomeworkIds = Array.isArray(value.completedIds) ? value.completedIds : next.completedHomeworkIds;
+    },
+    holidays: () => {
+      if (!Array.isArray(value)) throw new Error("holidays must be an array");
+      next.holidays = value;
+    },
+    templates: () => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("templates must be an object");
+      next.templates = value;
+    }
+  };
+
+  if (!writers[collection]) return null;
+  writers[collection]();
+  return next;
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const requestedPath = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
@@ -122,12 +210,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
-      return sendJson(res, 200, readSnapshot());
+      return sendJson(res, 200, normalizeSnapshot(readSnapshot()));
     }
 
     if (req.method === "PUT" && url.pathname === "/api/snapshot") {
       const snapshot = await readBody(req);
-      writeSnapshot(snapshot);
+      writeSnapshot(normalizeSnapshot(snapshot));
       return sendJson(res, 200, { ok: true, savedAt: new Date().toISOString() });
     }
 
@@ -135,6 +223,29 @@ const server = http.createServer(async (req, res) => {
       const snapshot = defaultSnapshot();
       writeSnapshot(snapshot);
       return sendJson(res, 200, snapshot);
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/entities") {
+      return sendJson(res, 200, entityPayload(readSnapshot()));
+    }
+
+    if (url.pathname.startsWith("/api/entities/")) {
+      const collection = url.pathname.replace("/api/entities/", "");
+      const snapshot = readSnapshot();
+
+      if (req.method === "GET") {
+        const payload = readEntity(snapshot, collection);
+        if (payload === undefined) return sendJson(res, 404, { ok: false, message: "unknown entity collection" });
+        return sendJson(res, 200, payload);
+      }
+
+      if (req.method === "PUT") {
+        const body = await readBody(req);
+        const next = updateEntity(snapshot, collection, body);
+        if (!next) return sendJson(res, 404, { ok: false, message: "unknown entity collection" });
+        writeSnapshot(next);
+        return sendJson(res, 200, { ok: true, savedAt: new Date().toISOString(), [collection]: readEntity(next, collection) });
+      }
     }
 
     serveStatic(req, res);
