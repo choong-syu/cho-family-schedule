@@ -107,7 +107,7 @@
 
 ## 다음 구현 순서
 
-1. `snapshot.json`을 SQLite로 가져오는 migration 스크립트 추가
-2. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
-3. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
-4. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환
+1. 로그인 비밀번호를 평문 비교에서 해시 비교로 변경
+2. 프론트 `ScheduleApi`를 entity API 기반으로 점진 전환
+3. 배포 환경에서 `STORAGE_DRIVER=sqlite`를 기본값으로 전환
+4. SQLite 테이블을 Postgres 호환 스키마로 확장

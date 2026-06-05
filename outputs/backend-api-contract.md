@@ -16,6 +16,26 @@ Response:
 
 `storageDriver`는 `file` 또는 `sqlite`입니다.
 
+## SQLite Migration
+
+현재 파일 저장소의 `snapshot.json`을 SQLite로 옮깁니다.
+
+```powershell
+npm run migrate:sqlite
+```
+
+대상 파일을 지정하려면:
+
+```powershell
+node outputs/migrate-sqlite.js --to outputs/data/schedule.sqlite
+```
+
+쓰기 없이 개수만 확인하려면:
+
+```powershell
+node outputs/migrate-sqlite.js --dry-run
+```
+
 ## Admin Login
 
 ### `POST /api/admin/login`

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node outputs/server.js",
     "start:file": "node outputs/server.js",
-    "start:sqlite": "set STORAGE_DRIVER=sqlite&& node outputs/server.js"
+    "start:sqlite": "set STORAGE_DRIVER=sqlite&& node outputs/server.js",
+    "migrate:sqlite": "node outputs/migrate-sqlite.js"
   }
 }
